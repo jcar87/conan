@@ -525,6 +525,28 @@ class PkgConfigBlock(Block):
         pkg_config_path = "${CMAKE_CURRENT_LIST_DIR}" + pathsep
         return {"pkg_config": pkg_config,
                 "pkg_config_path": pkg_config_path}
+    
+class ExperimentalCXXModulesBlock(Block):
+    template = textwrap.dedent("""
+    {% if enable_experimental %}
+    # Enable CMake experimental C++ module support
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
+        set(CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API "ac01f462-0f5f-432a-86aa-acef252918a6")
+    elseif(CMAKE_VERSION VERSION_GREATER_EQUAL 3.27)
+        set(CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API "aa1f7df0-828a-4fcd-9afc-2dc80491aca7")
+    elseif(CMAKE_VERSION VERSION_GREATER_EQUAL 3.26)
+        set(CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API "2182bf5c-ef0d-489a-91da-49dbc3090d2a")
+    elseif(CMAKE_VERSION VERSION_GREATER_EQUAL 3.25)
+        set(CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API "3c375311-a3c9-4396-a187-3227ef642046")
+    else()
+        message(WARNING "Conan CMakeToolchain: this version of CMake does not support experimental CMake modules")
+    endif()
+    {% endif %}
+    """)
+
+    def context(self):
+        enable_experimental = self._conanfile.conf.get("tools.cmake.cmaketoolchain:experimental_cxx_modules", check_type=bool)
+        return {"enable_experimental": enable_experimental}
 
 
 class UserToolchain(Block):

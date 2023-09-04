@@ -55,6 +55,7 @@ BUILT_IN_CONFS = {
                                           "app on the same architecture. It's used by 'can_run' tool",
     "tools.build:verbosity": "Verbosity of build systems if set. Possible values are 'quiet' and 'verbose'",
     "tools.compilation:verbosity": "Verbosity of compilation tools if set. Possible values are 'quiet' and 'verbose'",
+    "tools.cmake.cmaketoolchain:experimental_cxx_modules": "Enable CMake experimental C++20 module API - experimental feature",
     "tools.cmake.cmaketoolchain:generator": "User defined CMake generator to use instead of default",
     "tools.cmake.cmaketoolchain:find_package_prefer_config": "Argument for the CMAKE_FIND_PACKAGE_PREFER_CONFIG",
     "tools.cmake.cmaketoolchain:toolchain_file": "Use other existing file rather than conan_toolchain.cmake one",

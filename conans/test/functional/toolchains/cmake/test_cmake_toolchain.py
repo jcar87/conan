@@ -1352,3 +1352,68 @@ def test_inject_user_toolchain_profile():
                  "CMakeLists.txt": cmake})
     client.run("create . -pr=myprofile")
     assert "-- MYVAR1 MYVALUE1!!" in client.out
+
+
+def test_cmake_toolchain_experimental_module_dyndep_support():
+    client = TestClient()
+
+    conanfile = textwrap.dedent("""
+        from conan import ConanFile
+        from conan.tools.cmake import CMake
+        class Pkg(ConanFile):
+            settings = "os", "compiler", "arch", "build_type"
+            exports_sources = "CMakeLists.txt", "foo.cxx"
+            generators = "CMakeToolchain"
+            def build(self):
+                cmake = CMake(self)
+                cmake.configure()
+        """)
+    
+    cmakelists = textwrap.dedent("""
+        cmake_minimum_required(VERSION 3.26)
+        project(cxx-modules CXX)
+        message("CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API: ${CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API}")
+        add_library(foo)
+        target_sources(foo
+        PUBLIC
+            FILE_SET cxx_modules TYPE CXX_MODULES FILES
+            foo.cxx
+        )    
+        """)
+    
+    foo_cxx = textwrap.dedent("""
+            export module m;
+            export int add_five(const int a) {
+                return a + 5;
+            }
+            """)
+    
+    # TODO: this should only include the cmaketoolchain confs
+    #       and ensure this can run on CI (limit to Windows/msvc?)
+    profile = textwrap.dedent("""
+            [settings]
+            arch=armv8
+            build_type=Release
+            compiler=clang
+            compiler.cppstd=20
+            compiler.libcxx=libc++
+            compiler.version=16
+            os=Macos
+
+            [buildenv]
+            PATH+=(path)/opt/clang16/bin
+                              
+            [conf]
+            tools.cmake.cmaketoolchain:experimental_cxx_modules=True
+            tools.cmake.cmaketoolchain:generator=Ninja
+            tools.build:compiler_executables={'c':'/opt/clang16/bin/clang', 'cpp':'/opt/clang16/bin/clang++'}
+            tools.build:cxxflags=["-isysroot /Applications/Xcode_14.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/"]
+            """)
+
+    client.save({"conanfile.py": conanfile,
+                 "CMakeLists.txt": cmakelists,
+                 "foo.cxx": foo_cxx,
+                 "profile_conf": profile}, clean_first=True)
+    
+    # Successful configure and generate is enough
+    client.run("create . --name=pkg --version=0.1 -s compiler.cppstd=20 -pr profile_conf")
