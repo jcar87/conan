@@ -863,8 +863,10 @@ def test_build_order_build_context_compatible():
     # Build requirements
     #     foo/1.0#2c8d42f07f71e5078b3a014293f244eb:4e2ae338231ae18d0d43b9e119404d2b2c416758 - Build
     c.run(
-        'graph build-order --require=foo/1.0 --require=bar/1.0 --profile:all profile -s "foo/*:compiler.cppstd=17" --build=missing --order-by=configuration',
+        'graph build-order --require=foo/1.0 --require=bar/1.0 --profile:all profile -s "foo/*:compiler.cppstd=17" --build=missing --order-by=configuration --format=json',
+        redirect_stdout="build_order.json"
     )
+    build_order = json.loads(c.load("build_order.json"))
 
     # Build order:
     # - "--require/bar.1.0" and "require=foo/1.0" and --build="missing:foo/*" --build="missing:bar/*"
