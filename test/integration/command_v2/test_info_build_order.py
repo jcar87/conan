@@ -805,3 +805,79 @@ def test_build_order_space_in_options():
     order = json.loads(tc.load("order.json"))
     assert order["order"][0][0]["build_args"] == '''--requires=dep/1.0 --build=dep/1.0 -o="dep/*:extras=cxx="yes" gnuext='no'" -o="dep/*:flags=define=FOO define=BAR define=BAZ"'''
 
+
+def test_build_order_build_context_compatible():
+
+    c = TestClient()
+
+    conanfile_foo = textwrap.dedent("""
+        from conan import ConanFile
+        from conan.tools.build import check_min_cppstd
+
+        class Pkg(ConanFile):
+            name = "foo"
+            version = "1.0"
+            settings = "os", "compiler"
+            def validate_build(self):
+                check_min_cppstd(self, 17)
+
+            def validate(self):
+                check_min_cppstd(self, 14)
+        """)
+    conanfile_bar = textwrap.dedent("""
+        from conan import ConanFile
+        from conan.tools.build import check_min_cppstd
+
+        class Pkg(ConanFile):
+            name = "bar"
+            version = "1.0"
+            settings = "os", "compiler"
+            def build_requirements(self):
+                self.tool_requires("foo/1.0")
+        """)
+    profile = textwrap.dedent(f"""\
+        [settings]
+        arch=x86_64
+        build_type=Release
+        compiler=gcc
+        compiler.cppstd=gnu14
+        compiler.libcxx=libstdc++11
+        compiler.version=11
+        os=Linux
+        """)
+    c.save({
+        "conanfile_foo.py": conanfile_foo,
+        "conanfile_bar.py": conanfile_bar,
+        "profile": profile
+    })
+    c.run("export conanfile_foo.py")
+    c.run("export conanfile_bar.py")
+
+    #  "--require/bar.1.0" and "require=foo/1.0" along with `--build=missing` would cause both
+    # packages to be built in the host context - with foo being built with cppstd=17 (because the default cppstd=14 is not enough)
+    # bar requires foo in the "build" context - where cppstd=14 - but it can reuse the one built for cppstd=17
+    # (via compatibility plugin)
+    # Requirements
+    #     bar/1.0#becdc8d2285c382cf8d6e9a3cda6724a:5e4ffcc1ff33697a4ee96f66f0d2228ec458f25c - Build
+    #     foo/1.0#2c8d42f07f71e5078b3a014293f244eb:4e2ae338231ae18d0d43b9e119404d2b2c416758 - Build
+    # Build requirements
+    #     foo/1.0#2c8d42f07f71e5078b3a014293f244eb:4e2ae338231ae18d0d43b9e119404d2b2c416758 - Build
+    c.run(
+        'graph build-order --require=foo/1.0 --require=bar/1.0 --profile:all profile -s "foo/*:compiler.cppstd=17" --build=missing --order-by=configuration',
+    )
+
+    # Build order:
+    # - "--require/bar.1.0" and "require=foo/1.0" and --build="missing:foo/*" --build="missing:bar/*"
+    #   should be roughly equivalent, but compatibility does not kick in - so fails because the package
+    #   for foo in the build context is with cppstd=14 which is invalid
+    #    ======== Computing necessary packages ========
+    #    Requirements
+    #        bar/1.0#becdc8d2285c382cf8d6e9a3cda6724a:5e4ffcc1ff33697a4ee96f66f0d2228ec458f25c - Build
+    #        foo/1.0#2c8d42f07f71e5078b3a014293f244eb:4e2ae338231ae18d0d43b9e119404d2b2c416758 - Build
+    #    Build requirements
+    #       foo/1.0#2c8d42f07f71e5078b3a014293f244eb:5e4ffcc1ff33697a4ee96f66f0d2228ec458f25c - Invalid
+    c.run(
+        'graph build-order --require=foo/1.0 --require=bar/1.0 --profile:all profile -s "foo/*:compiler.cppstd=17" --build="missing:foo/*" --build="missing:bar/*" --order-by=configuration',
+        assert_error=True)
+
+    pass
