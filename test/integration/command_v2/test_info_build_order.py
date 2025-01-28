@@ -880,6 +880,6 @@ def test_build_order_build_context_compatible():
     #       foo/1.0#2c8d42f07f71e5078b3a014293f244eb:5e4ffcc1ff33697a4ee96f66f0d2228ec458f25c - Invalid
     c.run(
         'graph build-order --require=foo/1.0 --require=bar/1.0 --profile:all profile -s "foo/*:compiler.cppstd=17" --build="missing:foo/*" --build="missing:bar/*" --order-by=configuration',
-        assert_error=True)
+        )
 
     pass
