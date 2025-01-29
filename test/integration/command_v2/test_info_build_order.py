@@ -859,7 +859,6 @@ def test_build_order_build_context_compatible():
                      '--build="compatible:foo/*" --build="missing:bar/*"',
                      '--build="missing:foo/*" --build="compatible:foo/*" --build="missing:bar/*"'):
         c.run(f'graph build-order --require=foo/1.0 --require=bar/1.0 -pr:a profile {approach}')
-        print(c.out)
         c.assert_listed_binary({"foo/1.0": ["4e2ae338231ae18d0d43b9e119404d2b2c416758", "Build"],
                                 "bar/1.0": ["5e4ffcc1ff33697a4ee96f66f0d2228ec458f25c", "Build"]})
         c.assert_listed_binary({"foo/1.0": ["4e2ae338231ae18d0d43b9e119404d2b2c416758", "Build"]},
